@@ -1,72 +1,98 @@
 const ejs = require("ejs");
 const path = require("path");
+const fs = require("fs");
 const Employee = require("../Modals/EmployeeModal");
 const generateQrCode = require("../utils/generateQr");
+const QRCodeModel = require("../Modals/QRCodeModal");
 const puppeteer = require("puppeteer");
 
+// Generate QR PDFs and save file paths
 exports.generateQrPDF = async (req, res) => {
   const { employeeIds, pagesPerEmployee } = req.body;
 
   try {
     const employees = await Employee.find({ _id: { $in: employeeIds } });
+
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
 
-    const files = [];
+    const pdfPaths = [];
 
     for (const employee of employees) {
       const qrCode = await generateQrCode(
-        `http://localhost:3000/qr/${employee._id}`
+        `${req.protocol}://${req.get("host")}/qr/${employee.employeeId}` //http://localhost:3000/qr/1001
       );
 
       const html = await ejs.renderFile(
         path.join(__dirname, "../views/template.ejs"),
         {
-          Name: employee.name,
-          Email: employee.email,
-          Department: employee.department,
-          employeeId: employee._id,
+          Name: employee.Name,
+          Email: employee.Email,
+          Department: employee.Department,
+          employeeId: employee.employeeId,
           qrCode,
         }
       );
 
       await page.setContent(html, { waitUntil: "networkidle0" });
 
-      const buffers = [];
       for (let i = 0; i < pagesPerEmployee; i++) {
-        const buffer = await page.pdf({ format: "A4" });
-        buffers.push(buffer);
+        const pdfBuffer = await page.pdf({ format: "A4" });
+
+        const filename = `${employee.Name}-${employee.employeeId}-${i + 1}.pdf`;
+        const filePath = path.join(__dirname, "../public/qrcodes", filename);
+
+        fs.writeFileSync(filePath, pdfBuffer);
+
+        const fullUrl = `${req.protocol}://${req.get(
+          "host"
+        )}/qrcodes/${filename}`;
+        pdfPaths.push(fullUrl);
+
+        await QRCodeModel.findOneAndUpdate(
+          { employeeId: employee.employeeId },
+          {
+            $push: {
+              pdfFiles: {
+                fileName: filename,
+                filePath: fullUrl,
+              },
+            },
+          },
+          { upsert: true, new: true }
+        );
       }
-
-      const finalBuffer = Buffer.concat(buffers);
-      const filename = `${employee.name}-${uuid()}.pdf`;
-      const filePath = path.join(__dirname, `../public/qrcodes/${filename}`);
-
-      fs.writeFileSync(filePath, finalBuffer);
-      files.push({ employee: employee.name, url: `/qrcodes/${filename}` });
     }
 
     await browser.close();
-
-    res.json({ success: true, files });
+    res.json({ files: pdfPaths });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Something went wrong");
+    res.status(500).send("Something went wrong generating QR PDF");
   }
 };
 
+// Render QR page from link
 exports.renderEmployee = async (req, res) => {
-  const employeeId = req.params.id;
+  const employeeId = parseInt(req.params.id);
+  if (isNaN(employeeId)) {
+    return res.status(400).send("Invalid employee ID");
+  }
+
   try {
-    const employee = await Employee.findById(employeeId);
+    const employee = await Employee.findOne({ employeeId });
+
+    if (!employee) return res.status(404).send("Employee not found");
+
     const qrCode = await generateQrCode(
-      req.protocol + "://" + req.get("host") + req.originalUrl
+      `${req.protocol}://${req.get("host")}${req.originalUrl}`
     );
+
     res.render("template", {
-      Name: employee.name,
-      Email: employee.email,
-      Department: employee.department,
-      employeeId: employee._id,
+      Name: employee.Name,
+      Email: employee.Email,
+      Department: employee.Department,
+      employeeId: employee.employeeId,
       qrCode,
     });
   } catch (error) {
@@ -74,24 +100,39 @@ exports.renderEmployee = async (req, res) => {
     res.status(404).send("Employee not found");
   }
 };
-exports.downloadQrPDF = async (req, res) => {
-  const employeeId = req.params.id;
 
+// Get all employees who have PDFs
+exports.getAllEmployeePDFs = async (req, res) => {
   try {
-    const employee = await Employee.findById(employeeId);
-    if (!employee || !employee.qrPdf) {
-      return res.status(404).send("QR PDF not found");
-    }
-
-    res.set({
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename=employee_${employeeId}_qr.pdf`,
+    const qrRecords = await QRCodeModel.find({
+      pdfFiles: { $exists: true, $not: { $size: 0 } },
     });
 
-    res.send(employee.qrPdf);
+    if (!qrRecords.length) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const employeeIds = qrRecords.map((qr) => qr.employeeId);
+    const employees = await Employee.find({ employeeId: { $in: employeeIds } });
+
+    const qrMap = {};
+    qrRecords.forEach((qr) => {
+      qrMap[qr.employeeId] = qr.pdfFiles;
+    });
+
+    const result = employees.map((emp) => ({
+      employeeId: emp.employeeId,
+      name: emp.Name,
+      email: emp.Email,
+      department: emp.Department,
+      pdfFiles: qrMap[emp.employeeId] || [],
+    }));
+
+    res.json({ success: true, data: result });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error downloading QR PDF");
+    console.error("Error fetching employee PDFs:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch employee PDFs" });
   }
 };
-
