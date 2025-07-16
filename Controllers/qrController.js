@@ -9,13 +9,12 @@ exports.generateQrPDF = async (req, res) => {
 
   try {
     const employees = await Employee.find({ _id: { $in: employeeIds } });
-
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
 
-    for (const employee of employees) {
-      const buffers = [];
+    const files = [];
 
+    for (const employee of employees) {
       const qrCode = await generateQrCode(
         `http://localhost:3000/qr/${employee._id}`
       );
@@ -33,24 +32,26 @@ exports.generateQrPDF = async (req, res) => {
 
       await page.setContent(html, { waitUntil: "networkidle0" });
 
+      const buffers = [];
       for (let i = 0; i < pagesPerEmployee; i++) {
         const buffer = await page.pdf({ format: "A4" });
         buffers.push(buffer);
       }
 
-      const fullPdf = Buffer.concat(buffers);
+      const finalBuffer = Buffer.concat(buffers);
+      const filename = `${employee.name}-${uuid()}.pdf`;
+      const filePath = path.join(__dirname, `../public/qrcodes/${filename}`);
 
-      // Save PDF buffer in MongoDB
-      employee.qrPdf = fullPdf;
-      await employee.save();
+      fs.writeFileSync(filePath, finalBuffer);
+      files.push({ employee: employee.name, url: `/qrcodes/${filename}` });
     }
 
     await browser.close();
 
-    res.status(200).json({ message: "QR PDFs generated and stored." });
+    res.json({ success: true, files });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Something went wrong generating QR PDF");
+    res.status(500).send("Something went wrong");
   }
 };
 
