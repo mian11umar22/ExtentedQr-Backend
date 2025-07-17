@@ -5,6 +5,7 @@ const Employee = require("../Modals/EmployeeModal");
 const generateQrCode = require("../utils/generateQr");
 const QRCodeModel = require("../Modals/QRCodeModal");
 const puppeteer = require("puppeteer");
+const checkQr = require("../utils/qrScanner");
 
 // Generate QR PDFs and save file paths
 exports.generateQrPDF = async (req, res) => {
@@ -134,5 +135,27 @@ exports.getAllEmployeePDFs = async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch employee PDFs" });
+  }
+};
+exports.uploadAndScanQr = async (req, res) => {
+  const file = req.file;
+  if (!file) {
+    return res.status(400).json({ error: "please uplaod a file" });
+  }
+  const filepath = file.path;
+  const filetype = file.mimetype;
+
+  const qrdata = await checkQr(filepath, filetype);
+  if (qrdata) {
+    res.status(200).json({
+      message: "QR code found!",
+      qrdata: qrdata,
+      file: file.filename,
+    });
+  } else {
+    res.status(200).json({
+      message: "No QR code found in the file.",
+      file: file.filename,
+    });
   }
 };

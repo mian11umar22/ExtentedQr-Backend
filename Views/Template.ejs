@@ -3,60 +3,97 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Employee Details - DotLabs HR</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Employee Identity Template</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      .page {
+        position: relative;
+        width: 794px;
+        height: 1123px;
+        padding: 2.5rem;
+        background-color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        font-family: 'Segoe UI', sans-serif;
+      }
+    </style>
   </head>
-  <body class="bg-gray-100 text-gray-800 font-sans">
+  <body>
+    <div class="page">
+      <!-- Header Section -->
+      <div>
+        <div class="relative border-b-8 border-blue-700 pb-6 mb-10">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-3xl font-bold text-blue-800 tracking-wide">DOTLABS.AI</h1>
+              <p class="text-sm text-gray-500 italic">Smart. Simple. Scalable.</p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm">Date: <%= new Date().toLocaleDateString() %></p>
+            </div>
+          </div>
+          <div class="absolute left-0 bottom-0 w-40 h-2 bg-gradient-to-r from-blue-800 to-cyan-400 transform -rotate-2"></div>
+        </div>
 
-    <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-10">
-      <div class="max-w-6xl mx-auto py-6 px-4 flex justify-between items-center border-b border-gray-200">
-        <h1 class="text-3xl font-extrabold text-blue-700 tracking-wide">DotLabs HR Portal</h1>
-        <span class="text-sm text-gray-400 italic">Employee Report</span>
+        <!-- Main Content -->
+        <div class="space-y-6">
+          <h2 class="text-2xl font-semibold text-blue-700 border-b pb-1 border-blue-500">Employee Information</h2>
+          <div class="grid grid-cols-2 gap-x-16 gap-y-4">
+            <div>
+              <p class="text-sm font-bold text-gray-600">Full Name</p>
+              <p class="text-lg font-medium text-gray-900"><%= Name %></p>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-gray-600">Email Address</p>
+              <p class="text-lg font-medium text-gray-900"><%= Email %></p>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-gray-600">Department</p>
+              <p class="text-lg font-medium text-gray-900"><%= Department %></p>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-gray-600">Employee ID</p>
+              <p class="text-lg font-medium text-gray-900">#<%= employeeId %></p>
+            </div>
+          </div>
+
+          <div class="mt-8 p-6 border-l-4 border-blue-600 bg-blue-50 shadow-sm text-justify space-y-4 text-sm leading-relaxed text-gray-700">
+            <p><%= Name %> has officially been recognized as a trusted and essential part of Dotlabs.ai. As an active contributor in the <%= Department %> department, their role significantly impacts our mission to build intelligent, user-friendly systems that scale efficiently and adapt quickly to evolving needs in the tech world.</p>
+
+            <p>Joining Dotlabs.ai means more than just being part of a company — it means becoming part of a vision to simplify complexity through technology. With each project and every collaboration, <%= Name %> continues to showcase integrity, commitment, and the ability to think beyond the present. Their email address, <%= Email %>, serves as the direct contact point for innovation and support driven by our standards of excellence.</p>
+
+            <p>This document is a formal acknowledgment of the credibility and responsibility entrusted to <%= Name %>. It is also a symbol of Dotlabs.ai’s gratitude for the consistent performance and passion demonstrated day after day. From internal development to external outreach, <%= Name %> represents the very ideals our organization is proud to uphold.</p>
+
+            <p>As we move into the future of AI and smart systems, Dotlabs.ai is confident that our collective strength lies in people like <%= Name %>. Through integrity, teamwork, and visionary thinking, we continue to push boundaries and lead industries — together.</p>
+          </div>
+        </div>
       </div>
-    </header>
 
-    <!-- Main Content -->
-    <main class="max-w-4xl mx-auto mt-10 bg-white shadow-xl rounded-xl p-10 border border-blue-100">
-      <h2 class="text-2xl font-bold mb-6 text-blue-600 border-b pb-2">👤 Employee Information</h2>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
-        <div>
-          <p class="text-sm text-gray-500 mb-1">Full Name</p>
-          <p class="text-lg font-semibold text-gray-800"><%= Name %></p>
+      <!-- Bottom Section: QR + Footer -->
+      <div class="relative mt-auto pt-10">
+        <!-- QR Code Placement -->
+        <div class="absolute right-0 bottom-24 text-center">
+          <p class="text-sm text-gray-500 mb-1">Scan to verify identity</p>
+          <img src="<%= qrCode %>" alt="QR Code" class="w-28 h-28 border-2 border-gray-300 shadow-lg inline-block" />
         </div>
 
-        <div>
-          <p class="text-sm text-gray-500 mb-1">Email</p>
-          <p class="text-lg font-semibold text-gray-800"><%= Email %></p>
-        </div>
-
-        <div>
-          <p class="text-sm text-gray-500 mb-1">Department</p>
-          <p class="text-lg font-semibold text-gray-800"><%= Department %></p>
-        </div>
-
-        <div>
-          <p class="text-sm text-gray-500 mb-1">Employee ID</p>
-          <p class="text-lg font-semibold text-gray-800">#<%= employeeId %></p>
-        </div>
+        <!-- Footer -->
+        <footer class="w-full border-t-8 border-blue-700 pt-4 pb-2 text-center text-sm text-gray-600 bg-white">
+          <div class="flex justify-center space-x-10 text-blue-800 font-semibold mb-1">
+            <span>www.dotlabs.ai</span>
+            <span>carrer@dotlabs.ai</span>
+            <span>+123 456 7890</span>
+          </div>
+          <p class="text-xs">&copy; <%= new Date().getFullYear() %> Dotlabs.ai. All rights reserved.</p>
+        </footer>
       </div>
-
-      <!-- QR Code Section -->
-      <div class="mt-12 text-center">
-        <h3 class="text-md text-gray-500 mb-2 uppercase tracking-wider">Employee QR Code</h3>
-        <div class="inline-block border border-gray-300 p-3 rounded shadow-md bg-white">
-          <img src="<%= qrCode %>" alt="QR Code" class="w-36 h-36" />
-        </div>
-      </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="mt-20 bg-white py-4 shadow-inner">
-      <div class="max-w-6xl mx-auto text-center text-sm text-gray-400">
-        &copy; <%= new Date().getFullYear() %> DotLabs HR • All Rights Reserved
-      </div>
-    </footer>
-
+    </div>
   </body>
 </html>
