@@ -10,7 +10,7 @@ dotenv.config();
 
 // Middleware and view setup
 app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "Views"));
+app.set("views", path.join(__dirname, "views"));
 app.use(express.static("public"));
 app.use(cors());
 app.use("/qrcodes", express.static(path.join(__dirname, "public/qrcodes")));
