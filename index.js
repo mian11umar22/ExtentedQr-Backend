@@ -18,7 +18,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/employee", EmployeeRoute);
 app.use("/", TemplateRoute);
-app.use("/qr", qrRoutes);
+app.use("/", qrRoutes);
 const port = process.env.PORT || 3000;
 mongoose.connect(process.env.DB_HOST).then(console.log("Connected to mongodb"));
 app.listen(port, () => {

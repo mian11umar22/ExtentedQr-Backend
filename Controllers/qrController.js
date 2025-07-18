@@ -9,54 +9,70 @@ const checkQr = require("../utils/qrScanner");
 
 // Generate QR PDFs and save file paths
 exports.generateQrPDF = async (req, res) => {
-  const { employeeIds, pagesPerEmployee } = req.body;
+  const { employeeIds, pagesPerEmployee, templateType } = req.body;
 
   try {
     const employees = await Employee.find({ _id: { $in: employeeIds } });
 
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
-
     const pdfPaths = [];
 
     for (const employee of employees) {
-      const qrCode = await generateQrCode(
-        `${req.protocol}://${req.get("host")}/qr/${employee.employeeId}` //http://localhost:3000/qr/1001
-      );
-
-      const html = await ejs.renderFile(
-        path.join(__dirname, "../views/template.ejs"),
-        {
-          Name: employee.Name,
-          Email: employee.Email,
-          Department: employee.Department,
-          employeeId: employee.employeeId,
-          qrCode,
-        }
-      );
-
-      await page.setContent(html, { waitUntil: "networkidle0" });
+      const templateFile =
+        templateType === "qr-only" ? "qr_only_template.ejs" : "template.ejs";
 
       for (let i = 0; i < pagesPerEmployee; i++) {
-        const pdfBuffer = await page.pdf({ format: "A4" });
-
+        // Construct file name and public file URL
         const filename = `${employee.Name}-${employee.employeeId}-${i + 1}.pdf`;
-        const filePath = path.join(__dirname, "../public/qrcodes", filename);
-
-        fs.writeFileSync(filePath, pdfBuffer);
-
-        const fullUrl = `${req.protocol}://${req.get(
+        const fileUrl = `${req.protocol}://${req.get(
           "host"
         )}/qrcodes/${filename}`;
-        pdfPaths.push(fullUrl);
 
+        // Determine what the QR code should link to
+        const qrCodeUrl =
+          templateType === "qr-only"
+            ? `${req.protocol}://${req.get("host")}/qr/qr-only/${
+                employee.employeeId
+              }`
+            : `${req.protocol}://${req.get("host")}/qr/${employee.employeeId}`;
+
+        const qrCode = await generateQrCode(qrCodeUrl);
+
+        // Render the template
+        const html = await ejs.renderFile(
+          path.join(__dirname, "../views", templateFile),
+          {
+            Name: employee.Name,
+            Email: employee.Email,
+            Department: employee.Department,
+            employeeId: employee.employeeId,
+            qrCode,
+          }
+        );
+
+        await page.setContent(html, { waitUntil: "networkidle0" });
+
+        // Generate PDF
+        const pdfBuffer = await page.pdf({
+          format: "A4",
+          printBackground: true,
+        });
+
+        const filePath = path.join(__dirname, "../public/qrcodes", filename);
+        fs.writeFileSync(filePath, pdfBuffer);
+        pdfPaths.push(fileUrl);
+
+        // Save to DB
         await QRCodeModel.findOneAndUpdate(
           { employeeId: employee.employeeId },
           {
             $push: {
               pdfFiles: {
                 fileName: filename,
-                filePath: fullUrl,
+                filePath: fileUrl,
+                templateType: templateType,
+                qrPointsTo: qrCodeUrl,
               },
             },
           },
@@ -73,23 +89,31 @@ exports.generateQrPDF = async (req, res) => {
   }
 };
 
-// Render QR page from link
+// Render QR page for default template
 exports.renderEmployee = async (req, res) => {
   const employeeId = parseInt(req.params.id);
+
   if (isNaN(employeeId)) {
     return res.status(400).send("Invalid employee ID");
   }
 
+  // Determine template based on the URL
+  const isQrOnly = req.path.startsWith("/qr/qr-only");
+  const templateType = isQrOnly ? "qr-only" : "default";
+
   try {
     const employee = await Employee.findOne({ employeeId });
-
     if (!employee) return res.status(404).send("Employee not found");
 
-    const qrCode = await generateQrCode(
-      `${req.protocol}://${req.get("host")}${req.originalUrl}`
-    );
+    const qrCodeUrl = isQrOnly
+      ? `${req.protocol}://${req.get("host")}/qr/qr-only/${employeeId}`
+      : `${req.protocol}://${req.get("host")}/qr/${employeeId}`;
 
-    res.render("template", {
+    const qrCode = await generateQrCode(qrCodeUrl);
+
+    const templateFile = isQrOnly ? "qr_only_template" : "Template";
+
+    res.render(templateFile, {
       Name: employee.Name,
       Email: employee.Email,
       Department: employee.Department,
@@ -98,11 +122,11 @@ exports.renderEmployee = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(404).send("Employee not found");
+    res.status(500).send("Error rendering template");
   }
 };
 
-// Get all employees who have PDFs
+// Get all employees with their PDF files
 exports.getAllEmployeePDFs = async (req, res) => {
   try {
     const qrRecords = await QRCodeModel.find({
@@ -137,11 +161,14 @@ exports.getAllEmployeePDFs = async (req, res) => {
       .json({ success: false, message: "Failed to fetch employee PDFs" });
   }
 };
+
+// Upload a file and scan QR from it
 exports.uploadAndScanQr = async (req, res) => {
   const file = req.file;
   if (!file) {
-    return res.status(400).json({ error: "please uplaod a file" });
+    return res.status(400).json({ error: "Please upload a file" });
   }
+
   const filepath = file.path;
   const filetype = file.mimetype;
 
