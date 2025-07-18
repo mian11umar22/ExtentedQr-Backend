@@ -117,7 +117,7 @@ exports.renderEmployee = async (req, res) => {
 
     const qrCode = await generateQrCode(qrCodeUrl);
 
-    const templateFile = isQrOnly ? "qr_only_template" : "Template";
+    const templateFile = isQrOnly ? "qr_only_template" : "template";
 
     res.render(templateFile, {
       Name: employee.Name,
